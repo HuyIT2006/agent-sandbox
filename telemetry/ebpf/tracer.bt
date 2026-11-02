@@ -1,0 +1,45 @@
+/*
+  tracer.bt
+  Thành viên 3: eBPF bpftrace script giám sát hành vi của Sandbox theo thời gian thực
+  Chạy bằng: sudo bpftrace telemetry/ebpf/tracer.bt
+*/
+
+BEGIN
+{
+    printf("====================================================\n");
+    printf("[*] eBPF Sandbox Runtime Tracer is RUNNING...\n");
+    printf("[*] Monitoring: execve, connect, openat syscalls\n");
+    printf("====================================================\n");
+}
+
+/* 1. Bắt tất cả các lệnh thực thi (Command Execution) */
+tracepoint:syscalls:sys_enter_execve
+{
+    printf("[EXEC] Time:%llu PID:%d Comm:%s Command:%s\n", 
+           nsecs, pid, comm, str(args->filename));
+}
+
+/* 2. Bắt tất cả các nỗ lực kết nối mạng (Network Connections) */
+tracepoint:syscalls:sys_enter_connect
+{
+    printf("[CONNECT] Time:%llu PID:%d Comm:%s SocketFD:%d\n", 
+           nsecs, pid, comm, args->fd);
+}
+
+/* 3. Bắt mở các file nhạy cảm trong hệ thống */
+tracepoint:syscalls:sys_enter_openat
+{
+    $fname = str(args->filename);
+    if (strncmp($fname, "/etc/shadow", 11) == 0 || 
+        strncmp($fname, "/etc/passwd", 11) == 0 ||
+        strncmp($fname, "/root", 5) == 0) 
+    {
+        printf("[SECURITY ALERT] PID:%d Comm:%s TRIED OPENING: %s\n", 
+               pid, comm, $fname);
+    }
+}
+
+END
+{
+    printf("\n[*] Stopping eBPF Sandbox Runtime Tracer.\n");
+}
