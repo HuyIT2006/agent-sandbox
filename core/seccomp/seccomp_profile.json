@@ -1,31 +1,126 @@
 {
   "default_action": "SCMP_ACT_ALLOW",
+  "kill_action": "SCMP_ACT_KILL_PROCESS",
   "architectures": [
-    "SCMP_ARCH_X86_64",
-    "SCMP_ARCH_X86",
-    "SCMP_ARCH_AARCH64"
+    "SCMP_ARCH_X86_64"
   ],
+  "comment": "Seccomp-BPF profile cho Agent Sandbox. Chặn các syscall nguy hiểm cho phép vượt rào sandbox, nạp kernel module, thay đổi mount/namespace, hoặc debug tiến trình khác. Profile này sẽ được biên dịch thành chương trình BPF nhị phân bởi seccomp_builder.py và nạp trực tiếp vào bwrap qua --seccomp <fd>.",
   "blocked_syscalls": [
-    "ptrace",
-    "bpf",
-    "sys_chroot",
-    "reboot",
-    "kexec_load",
-    "kexec_file_load",
-    "mount",
-    "umount2",
-    "pivot_root",
-    "swapon",
-    "swapoff",
-    "init_module",
-    "finit_module",
-    "delete_module",
-    "keyctl",
-    "request_key",
-    "add_key",
-    "setns",
-    "unshare",
-    "userfaultfd",
-    "perf_event_open"
+    {
+      "name": "ptrace",
+      "reason": "Cho phép debug/đọc bộ nhớ tiến trình khác → container escape"
+    },
+    {
+      "name": "process_vm_readv",
+      "reason": "Đọc bộ nhớ tiến trình khác mà không cần ptrace"
+    },
+    {
+      "name": "process_vm_writev",
+      "reason": "Ghi bộ nhớ tiến trình khác mà không cần ptrace"
+    },
+    {
+      "name": "bpf",
+      "reason": "Nạp chương trình eBPF vào kernel → đọc/thao tác kernel memory"
+    },
+    {
+      "name": "perf_event_open",
+      "reason": "Mở performance event → side-channel attack, leak thông tin kernel"
+    },
+    {
+      "name": "userfaultfd",
+      "reason": "Khai thác race condition trong kernel (CVE sử dụng userfaultfd)"
+    },
+    {
+      "name": "mount",
+      "reason": "Gắn filesystem → ghi đè vào các mount point nhạy cảm"
+    },
+    {
+      "name": "umount2",
+      "reason": "Tháo filesystem → phá vỡ cấu trúc mount isolation của bwrap"
+    },
+    {
+      "name": "pivot_root",
+      "reason": "Đổi root filesystem → vượt rào filesystem isolation"
+    },
+    {
+      "name": "chroot",
+      "reason": "Đổi root directory → sandbox escape cổ điển"
+    },
+    {
+      "name": "swapon",
+      "reason": "Kích hoạt swap device → ghi dữ liệu ra ổ đĩa host"
+    },
+    {
+      "name": "swapoff",
+      "reason": "Tắt swap → gây áp lực bộ nhớ host (OOM)"
+    },
+    {
+      "name": "reboot",
+      "reason": "Khởi động lại toàn bộ hệ thống host"
+    },
+    {
+      "name": "kexec_load",
+      "reason": "Nạp kernel mới và khởi động lại → chiếm quyền hoàn toàn"
+    },
+    {
+      "name": "kexec_file_load",
+      "reason": "Nạp kernel mới từ file descriptor"
+    },
+    {
+      "name": "init_module",
+      "reason": "Nạp kernel module → chạy mã tùy ý trong ring 0"
+    },
+    {
+      "name": "finit_module",
+      "reason": "Nạp kernel module từ file descriptor"
+    },
+    {
+      "name": "delete_module",
+      "reason": "Xóa kernel module → gây mất ổn định hệ thống"
+    },
+    {
+      "name": "setns",
+      "reason": "Chuyển sang namespace khác → vượt rào sandbox isolation"
+    },
+    {
+      "name": "unshare",
+      "reason": "Tạo namespace mới bên trong sandbox → nested escape"
+    },
+    {
+      "name": "keyctl",
+      "reason": "Thao tác kernel keyring → truy cập khóa bảo mật"
+    },
+    {
+      "name": "request_key",
+      "reason": "Yêu cầu khóa từ kernel keyring"
+    },
+    {
+      "name": "add_key",
+      "reason": "Thêm khóa vào kernel keyring"
+    },
+    {
+      "name": "acct",
+      "reason": "Bật process accounting → ghi log ra file host"
+    },
+    {
+      "name": "clock_settime",
+      "reason": "Thay đổi đồng hồ hệ thống → phá vỡ TTL/timeout/audit log"
+    },
+    {
+      "name": "settimeofday",
+      "reason": "Thay đổi thời gian hệ thống"
+    },
+    {
+      "name": "adjtimex",
+      "reason": "Điều chỉnh đồng hồ kernel NTP"
+    },
+    {
+      "name": "clock_adjtime",
+      "reason": "Điều chỉnh đồng hồ POSIX"
+    },
+    {
+      "name": "personality",
+      "reason": "Đổi ABI execution domain → chạy binary 32-bit bypass seccomp filter"
+    }
   ]
 }
